@@ -13,23 +13,33 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Extract ZIP and Locate Project
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Extract Project and Auto-Generate Gradle Wrapper
       run: |
         unzip -q "*.zip" -d extracted_project
-        # البحث عن المجلد الفعلي الذي يحتوي على ملفات أندرويد
-        GRADLE_DIR=$(find extracted_project -name "gradlew" -exec dirname {} \; | head -n 1)
+        
+        # البحث عن المجلد الذي يحتوي على ملف build.gradle أو مجلد app
+        GRADLE_DIR=$(find extracted_project -name "build.gradle" -exec dirname {} \; | head -n 1)
         if [ -z "$GRADLE_DIR" ]; then
-          GRADLE_DIR=$(find extracted_project -name "build.gradle" -exec dirname {} \; | head -n 1)
+          GRADLE_DIR=$(find extracted_project -name "app" -exec dirname {} \; | head -n 1)
         fi
-        echo "Project root found at: $GRADLE_DIR"
-        # نقل المحتويات للمجلد الرئيسي للبناء
+        if [ -z "$GRADLE_DIR" ]; then
+          GRADLE_DIR="extracted_project"
+        fi
+        
+        echo "Project directory identified: $GRADLE_DIR"
         cp -r $GRADLE_DIR/* .
         cp -r $GRADLE_DIR/.* . 2>/dev/null || true
+        
+        # توليد ملفات الـ Gradle الناقصة تلقائياً لضمان تخطي الخطأ
+        gradle wrapper --gradle-version 8.0
 
     - name: Make Gradle Executable
       run: chmod +x ./gradlew
 
-    - name: Build APK
+    - name: Build Android APK
       run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK Artifact
@@ -39,3 +49,4 @@ jobs:
         path: |
           app/build/outputs/apk/debug/*.apk
           **/build/outputs/apk/**/*.apk
+          *.apk
