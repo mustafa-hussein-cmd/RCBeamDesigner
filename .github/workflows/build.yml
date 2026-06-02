@@ -16,31 +16,30 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Extract Project and Auto-Generate Gradle Wrapper
+    - name: Extract Project and Fix Dependencies
       run: |
         unzip -q "*.zip" -d extracted_project
-        
-        # البحث عن المجلد الذي يحتوي على ملف build.gradle أو مجلد app
         GRADLE_DIR=$(find extracted_project -name "build.gradle" -exec dirname {} \; | head -n 1)
         if [ -z "$GRADLE_DIR" ]; then
           GRADLE_DIR=$(find extracted_project -name "app" -exec dirname {} \; | head -n 1)
         fi
-        if [ -z "$GRADLE_DIR" ]; then
-          GRADLE_DIR="extracted_project"
-        fi
+        if [ -z "$GRADLE_DIR" ]; then GRADLE_DIR="extracted_project"; fi
         
-        echo "Project directory identified: $GRADLE_DIR"
         cp -r $GRADLE_DIR/* .
         cp -r $GRADLE_DIR/.* . 2>/dev/null || true
         
-        # توليد ملفات الـ Gradle الناقصة تلقائياً لضمان تخطي الخطأ
+        # توليد إعدادات توافق مخصصة لإصدار 8.2
         gradle wrapper --gradle-version 8.2
+        
+        # إصلاح وتحديث إصدار المكونات برمجياً لتجنب تعارض النسخ
+        find . -name "build.gradle" -type f -exec sed -i 's/com.android.tools.build:gradle:[0-9.]*/com.android.tools.build:gradle:8.2.0/g' {} +
+        find . -name "build.gradle.kts" -type f -exec sed -i 's/id("com.android.application") version "[0-9.]*"/id("com.android.application") version "8.2.0"/g' {} +
 
     - name: Make Gradle Executable
       run: chmod +x ./gradlew
 
-    - name: Build Android APK
-      run: ./gradlew assembleDebug --stacktrace
+    - name: Build Android APK (Clean Build)
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
@@ -49,4 +48,3 @@ jobs:
         path: |
           app/build/outputs/apk/debug/*.apk
           **/build/outputs/apk/**/*.apk
-          *.apk
