@@ -13,26 +13,29 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Unzip Project Files
+    - name: Extract ZIP and Locate Project
       run: |
-        unzip "*.zip" -d project_files
-        find project_files -maxdepth 2 -name "gradlew" -exec dirname {} \; | head -n 1 > target_dir.txt
-        TARGET=$(cat target_dir.txt)
-        if [ -n "$TARGET" ]; then
-          mv $TARGET/* .
-          mv $TARGET/.* . 2>/dev/null || true
+        unzip -q "*.zip" -d extracted_project
+        # البحث عن المجلد الفعلي الذي يحتوي على ملفات أندرويد
+        GRADLE_DIR=$(find extracted_project -name "gradlew" -exec dirname {} \; | head -n 1)
+        if [ -z "$GRADLE_DIR" ]; then
+          GRADLE_DIR=$(find extracted_project -name "build.gradle" -exec dirname {} \; | head -n 1)
         fi
+        echo "Project root found at: $GRADLE_DIR"
+        # نقل المحتويات للمجلد الرئيسي للبناء
+        cp -r $GRADLE_DIR/* .
+        cp -r $GRADLE_DIR/.* . 2>/dev/null || true
 
     - name: Make Gradle Executable
       run: chmod +x ./gradlew
 
     - name: Build APK
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: rc-beam-designer-apk
         path: |
-          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/debug/*.apk
           **/build/outputs/apk/**/*.apk
