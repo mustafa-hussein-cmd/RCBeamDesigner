@@ -34,7 +34,7 @@ jobs:
         cp -r $GRADLE_DIR/.* . 2>/dev/null || true
         
         # توليد ملفات الـ Gradle الناقصة تلقائياً لضمان تخطي الخطأ
-        gradle wrapper --gradle-version 8.0
+        gradle wrapper --gradle-version 8.2
 
     - name: Make Gradle Executable
       run: chmod +x ./gradlew
